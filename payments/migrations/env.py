@@ -5,9 +5,11 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from payments.config import settings
+from config import settings
+from outbox.models import PaymentOutbox  # noqa
 from payments.database import Base
 from payments.models import Payment  # noqa
+from consumer.models import IdempotencyKey  # noqa
 
 config = context.config
 

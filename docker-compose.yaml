@@ -28,10 +28,58 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-#    command: >
-#      sh -c "alembic upgrade head &&
-#             uvicorn project_video.main:app --host 0.0.0.0 --port 8000"
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn payments.main:app --host 0.0.0.0 --port 8000"
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbit
+    expose:
+      - "5672"
+    ports:
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+
+  producer:
+    build: .
+    container_name: prod_cntr
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: python -m outbox.producer
+
+
+  consumer:
+    build: .
+    container_name: consumer
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: python -m consumer.consumer
 
 volumes:
   pg_data:
+  rabbitmq_data:
